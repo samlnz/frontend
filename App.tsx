@@ -8,9 +8,15 @@ import WinnerPage from './pages/WinnerPage';
 import IndependentAdmin from './pages/IndependentAdmin';
 import { cardGenerator } from './services/cardGenerator';
 
-// Set these to your production URLs in environment variables
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-const FINANCE_API = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+// Detection for Railway production URLs
+// In Production, the Node server usually serves the frontend on the same origin
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
+
+// You can set this as an Environment Variable in Railway: FINANCE_API_URL
+const FINANCE_API = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000' 
+  // FIX: Using process.env instead of import.meta.env to resolve TypeScript error on line 18
+  : ((process.env as any).VITE_FINANCE_API_URL || 'https://your-python-service.up.railway.app');
 
 const App: React.FC = () => {
   const [hasEntered, setHasEntered] = useState(false);
@@ -32,7 +38,6 @@ const App: React.FC = () => {
 
   const isAdminView = new URLSearchParams(window.location.search).get('view') === 'admin';
 
-  // Identity Initialization via Telegram
   useEffect(() => {
     if ((window as any).Telegram?.WebApp) {
       const tg = (window as any).Telegram.WebApp;
@@ -49,7 +54,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Sync Balance from Python Backend
   useEffect(() => {
     if (!playerId || playerId === '0000') return;
     
@@ -61,16 +65,15 @@ const App: React.FC = () => {
           setBalance(data.balance);
         }
       } catch (e) {
-        console.warn("Python Finance Server Unreachable");
+        // Silently fail or log for debug
       }
     };
 
     fetchBalance();
-    const inv = setInterval(fetchBalance, 6000); // Polling every 6s for updates
+    const inv = setInterval(fetchBalance, 10000); 
     return () => clearInterval(inv);
   }, [playerId]);
 
-  // Synchronize with Node.js Game Engine
   useEffect(() => {
     const fetchState = async () => {
       try {
@@ -92,7 +95,7 @@ const App: React.FC = () => {
       }
     };
 
-    const interval = setInterval(fetchState, 1500);
+    const interval = setInterval(fetchState, 2000);
     fetchState();
     return () => clearInterval(interval);
   }, []);
@@ -200,7 +203,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Persistent Wallet & Top Up FAB */}
       <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50">
         <button 
           onClick={() => (window as any).Telegram?.WebApp?.close()}
